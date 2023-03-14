@@ -1,6 +1,5 @@
 # mapping_yiddish_publishing
-[mapping_yiddish_publishing
-](https://sreyfe.github.io/mapping_yiddish_publishing/)
+Play with it here: https://sreyfe.github.io/mapping_yiddish_publishing/
 
 This webmap is made from the bibliographic data of the ca. 13,000 texts in the Yiddish Book Center's digital collection. Click the slider and use arrow keys or type to choose a year and see where in the world Yiddish literature was being published then. For more information, see the bibliography, which is sorted by location.
 https://eadh.org/projects/mapping-yiddishland
