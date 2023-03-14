@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+
+<!-- Mirrored from aws-website-dikhazarn-2yaxg.s3-website-us-east-1.amazonaws.com/ by HTTrack Website Copier/3.x [XR&CO'2014], Tue, 14 Mar 2023 15:17:58 GMT -->
+<head>
+
+  <title>Mapping Yiddish Publishing</title>
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.html" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin=""/>
+
+  <script
+  src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js" integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew==" crossorigin=""></script>
+  <script
+  src="leaflet.ajax.min.js"></script>
+  <script
+  src="jquery-3.5.1.min.js"></script>
+  <script
+  src="Leaflet.GeometryUtil-master/src/leaflet.geometryutil.js"></script>
+
+  <script
+  src="leaflet-sidebar-master/src/L.Control.Sidebar.js"></script>
+  <link rel="stylesheet" href="leaflet-sidebar-master/src/L.Control.Sidebar.css"/>
+  <script
+  type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/lodash.js/0.10.0/lodash.min.js"></script>
+  <script
+  src="underscore-observe/underscore-observe.js"></script>
+  <script src="cityMentions.js"></script>
+  <script src="latlongs.js"></script>
+  <script></script>
+  <script src="Leaflet.Dialog.js"></script>
+  <link rel="stylesheet" href="Leaflet.Dialog.css"/>
+
+
+
+  <script>
+    var contents = [
+    "<h2>TEMPORAL MAP OF YIDDISH PUBLISHING</h2>",
+    "<h3>by Jonah Lubin</h3>",
+    "<p>This map is made from the bibliographic data of the ca. 13,000 texts in the Yiddish Book Center's digital collection. Click the slider and use arrow keys or type to choose a year and see where in the world Yiddish literature was being published then. For more information, see the bibliography, which is sorted by location.</p>",
+    "<input type='range' min='0' max='151' value='0' class='slider' id='time-slider-bar' onchange='drawMap()' checked='checked'>",
+    "<input type='text' id='textInput' value='' onchange='sliderValue()'>",
+    //"<h2 id='yearmark'>1876</h2>",
+    "<br>",
+    "<p>Publications this year: <span class='no-break-before' id='totalNumber'></span></p>",
+    "<br>",
+    "<a href='javascript:sidebar.toggle();javascript:getCitations();''>See bibliography.</a>",
+    "<div>",
+    ].join('');
+  </script>
+
+  <script src="https://rawgit.com/filipzava/leaflet-control-bar/master/src/L.Control.Bar.js"></script>
+  <link rel="stylesheet" href="https://rawgit.com/filipzava/leaflet-control-bar/master/src/L.Control.Bar.css" />
+
+  <style type="text/css">* {cursor: url(https://ani.cursors-4u.net/others/oth-9/oth873.cur), auto !important;}</style><a href="http://www.cursors-4u.com/cursor/2017/04/24/saint-basil-s-cathedral.html" target="_blank" title="Saint Basil's Cathedral"><img src="http://cur.cursors-4u.net/cursor.png" border="0" alt="Saint Basil's Cathedral" style="position:absolute; top: 0px; right: 0px;" /></a>
+
+  <style>
+
+
+
+    #mapid{
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+    }
+    #bar{
+      width: 200%;
+    }
+
+    .float{
+      float: left;
+      width: 23%;
+    }
+
+    body > #sidebar {
+      display: none;
+    }
+
+  </style>
+
+
+
+</head>
+<body>
+
+
+
+
+  <div id='sidebar'>
+    <div style='position: fixed; background-color: white;'>
+      <a href='javascript:sidebar.toggle();'>Hide bibliography.</a>
+      <br>
+    </div>
+
+    <div id="citations"></div>
+
+    <div>
+      <h2 id="yearmark"></h2>
+    </div>
+
+
+  </div>
+
+</div>
+<div id='mapid'></div>
+
+
+
+
+
+
+
+<script>
+  var map = L.map("mapid").setView([24, 0], 3);
+
+       var tileLayer = L.tileLayer(
+      "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw",
+      {
+        maxZoom: 5,
+        id: "mapbox/light-v10",
+        tileSize: 512,
+        zoomOffset: -1
+      }
+      ).addTo(map);
+
+
+  var dialog = L.control.dialog()
+  .setContent(contents)
+  .addTo(map)
+  .setLocation([screen.height*.1, screen.width*.7])
+  .unfreeze()
+
+  dialog.options.maxSize = [300, 1000]
+  dialog.setSize([300, 450])
+
+  var sliderDiv = document.getElementById("time-slider-bar");
+
+  var sidebar = L.control.sidebar('sidebar', {
+    position: 'left',
+    autoPan: false
+  });
+  map.addControl(sidebar);
+
+
+
+  function getYear(x) {
+    var y = 1869 + x;
+    return y;
+  }
+
+  function getNums(year){
+    for (var key in cityMentions){
+      cityMentions[key] = 0;
+    }
+
+    for (j=0; j < jsonData.responseJSON.length; j++){
+      if(jsonData.responseJSON[j].year == year.toString()){
+        for (key in cityMentions){
+          if (key == jsonData.responseJSON[j].city){
+            cityMentions[key] = cityMentions[key] + 1;
+          }
+        }
+      }
+    }
+  }
+
+  function sliderValue(){
+    document.getElementById('time-slider-bar').value=(document.getElementById('textInput').value - 1869);
+    drawMap();
+  }
+
+  function clearMap() {
+    map.eachLayer(function(layer) {
+      if (layer !== tileLayer){
+        map.removeLayer(layer);
+      }})
+
+  }
+
+  function totalNum() {
+    var total = 0;
+    for (key in cityMentions){
+      total = total + parseInt(cityMentions[key]);
+    }
+
+    return total;
+  }
+
+  function getCitations(){
+    document.getElementById('citations').innerHTML = null;
+
+    var year = parseInt(getYear(parseInt(document.getElementById('time-slider-bar').value)));
+    document.getElementById('citations').innerHTML += "<br><br>" + "<b>" + year + "</b>";
+
+    for (j = 0; j < jsonData.responseJSON.length; j++){
+      if (parseInt(jsonData.responseJSON[j].year) == year){
+        document.getElementById('citations').innerHTML += "<br><br>"
+
+        if(jsonData.responseJSON[j].creator != ""){
+          document.getElementById('citations').innerHTML += jsonData.responseJSON[j].creator.replace(/, [0-9-]([^\n]+)$/,'') + ", "
+        }
+        else{
+          document.getElementById('citations').innerHTML += "";
+        }
+
+        document.getElementById('citations').innerHTML += "<i>" +  jsonData.responseJSON[j].title 
+          + ". </i>" + jsonData.responseJSON[j].city.replace(/([A-Z])/g, ' $1').trim()
+          + ": " + jsonData.responseJSON[j].publisher
+          + ", " + year + ". "
+
+          if (jsonData.responseJSON[j].volume != ""){
+            document.getElementById('citations').innerHTML += "Vol. " + jsonData.responseJSON[j].volume;
+          }
+      }
+    }
+  }
+
+  function drawMap(){
+    clearMap();
+
+    var year = getYear(parseInt(document.getElementById('time-slider-bar').value));
+    console.log(year);
+    var storedYear = sessionStorage.setItem("year", JSON.stringify(year));
+
+    document.getElementById('textInput').value=parseInt(year);
+
+    getNums(year);
+    
+    //sort cities lowest to highest mentions to ensure clickability
+    var sortable = [];
+
+    for (var key in cityMentions){
+        sortable.push([key, cityMentions[key]]);
+    }
+
+    sortable.sort(function(a, b){
+        return b[1] - a[1];
+    });
+
+    cityMentions = {}
+    sortable.forEach(function(item){
+        cityMentions[item[0]]=item[1]
+    });
+
+
+    for (var key in cityMentions){
+      if (cityMentions.hasOwnProperty(key)){
+        if (isNaN(cityMentions[key])){
+        }else if (cityMentions[key] == 0){
+        }else{
+          var cityName = key;
+          var spacedName = cityName.replace(/([A-Z])/g, ' $1').trim();
+
+          var color;
+          var r = 140 + Math.floor(cityMentions[key]) * 1.5;
+          var g = 180 + Math.floor(cityMentions[key]) * 2;
+          var b = 150 + Math.floor(cityMentions[key]) * 1;
+          var color = "rgb("+r+" ,"+g+","+ b+")"; 
+          var newCircle = L.circle(latlongs[key], {
+            color: color,
+            fillColor: color,
+            radius: Math.sqrt(cityMentions[key]) * 1.4 * 100000
+          }
+          ).bringToFront()
+          .bindPopup(spacedName.toString() + ", publications:  " + cityMentions[key].toString()).openPopup().bringToFront().addTo(map);
+
+          newCircle.on('mouseover', function (e){
+            this.openPopup();
+          });
+          newCircle.on('mouseout', function (e){
+            this.closePopup();
+          });
+        }
+        }
+
+      }
+
+      
+      document.getElementById("totalNumber").innerHTML = totalNum()
+    }
+
+
+    var jsonData = $.getJSON( "./data.json", function(data) {
+     console.log( "success" );
+
+     for (j = 0; j < jsonData.responseJSON.length; j++){
+
+     }
+
+
+
+     drawMap();
+
+
+   });
+
+
+
+  </script>
+
+</body>
+
+<!-- Mirrored from aws-website-dikhazarn-2yaxg.s3-website-us-east-1.amazonaws.com/ by HTTrack Website Copier/3.x [XR&CO'2014], Tue, 14 Mar 2023 15:18:14 GMT -->
+</html>
+
+
