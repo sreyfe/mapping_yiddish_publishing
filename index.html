@@ -41,14 +41,22 @@
     var contents = [
     "<h2>TEMPORAL MAP OF YIDDISH PUBLISHING</h2>",
     "<h3>by Jonah Lubin</h3>",
-    "<p>This map is made from the bibliographic data of the ca. 13,000 texts in the Yiddish Book Center's digital collection. Click the slider and use arrow keys or type to choose a year and see where in the world Yiddish literature was being published then. For more information, see the bibliography, which is sorted by location.</p>",
+    "<p>This map is made from the bibliographic data of the ca. 13,000 texts in the Yiddish Book Center's digital collection. We have two datasets: (1) all Yiddish publications, and (2) just translations into Yiddish. You can select 'All years' to see all the data, or select 'Pick year' and move the slider or type to choose a year and see where in the world Yiddish literature was being published then. For more information, see the bibliography, which is sorted by location.</p>",
+    "<input type='radio' id='dataset1' name='dataset' value='all_data' onchange='switchData()' checked='checked'>",
+    "<label for='dataset1'>All publications</label><br>",
+    "<input type='radio' id='dataset2' name='dataset' value='translations' onchange='switchData()'>",
+    "<label for='dataset2'>Just translations</label><br><br>",
+    "<input type='radio' id='all_years' name='years' value='all_years' onchange='drawMap()'>",
+    "<label for='all_years'>All years</label><br>",
+    "<input type='radio' id='pick_year' name='years' value='pick_year' onchange='drawMap()' checked='checked'>",
+    "<label for='pick_year'>Pick year</label><br>",
     "<input type='range' min='0' max='151' value='0' class='slider' id='time-slider-bar' onchange='drawMap()' checked='checked'>",
     "<input type='text' id='textInput' value='' onchange='sliderValue()'>",
     //"<h2 id='yearmark'>1876</h2>",
     "<br>",
     "<p>Publications this year: <span class='no-break-before' id='totalNumber'></span></p>",
-    "<br>",
     "<a href='javascript:sidebar.toggle();javascript:getCitations();''>See bibliography.</a>",
+
     "<div>",
     ].join('');
   </script>
@@ -137,9 +145,11 @@
   .unfreeze()
 
   dialog.options.maxSize = [300, 1000]
-  dialog.setSize([300, 450])
+  dialog.setSize([300, 580])
 
   var sliderDiv = document.getElementById("time-slider-bar");
+
+
 
   var sidebar = L.control.sidebar('sidebar', {
     position: 'left',
@@ -167,6 +177,21 @@
           }
         }
       }
+    }
+  }
+
+  function getAllYears(){
+    for (var key in cityMentions){
+      cityMentions[key] = 0;
+    }
+
+    for (j=0; j < jsonData.responseJSON.length; j++){
+        for (key in cityMentions){
+          if (key == jsonData.responseJSON[j].city){
+            cityMentions[key] = cityMentions[key] + 1;
+          }
+        }
+      
     }
   }
 
@@ -209,8 +234,20 @@
           document.getElementById('citations').innerHTML += "";
         }
 
+
         document.getElementById('citations').innerHTML += "<i>" +  jsonData.responseJSON[j].title 
-          + ". </i>" + jsonData.responseJSON[j].city.replace(/([A-Z])/g, ' $1').trim()
+
+        if (document.querySelector('input[name="dataset"]:checked').value == 'translations'){
+          if(jsonData.responseJSON[j].translator != ""){
+            document.getElementById('citations').innerHTML += ". Translated by "
+            document.getElementById('citations').innerHTML += jsonData.responseJSON[j].translator.replace(/, [0-9-]([^\n]+)$/,'') + ", "
+          }
+          else{
+            document.getElementById('citations').innerHTML += "";
+          }
+      }
+
+        document.getElementById('citations').innerHTML += ". </i>" + jsonData.responseJSON[j].city.replace(/([A-Z])/g, ' $1').trim()
           + ": " + jsonData.responseJSON[j].publisher
           + ", " + year + ". "
 
@@ -224,13 +261,20 @@
   function drawMap(){
     clearMap();
 
-    var year = getYear(parseInt(document.getElementById('time-slider-bar').value));
-    console.log(year);
-    var storedYear = sessionStorage.setItem("year", JSON.stringify(year));
+    if(document.querySelector('input[name="years"]:checked').value == 'pick_year'){
+      var year = getYear(parseInt(document.getElementById('time-slider-bar').value));
+      console.log(year);
+      var storedYear = sessionStorage.setItem("year", JSON.stringify(year));
 
-    document.getElementById('textInput').value=parseInt(year);
+      document.getElementById('textInput').value=parseInt(year);
 
-    getNums(year);
+      getNums(year);
+    }
+
+    else if(document.querySelector('input[name="years"]:checked').value == 'all_years'){
+      getAllYears()
+    }
+
     
     //sort cities lowest to highest mentions to ensure clickability
     var sortable = [];
@@ -262,10 +306,16 @@
           var g = 180 + Math.floor(cityMentions[key]) * 2;
           var b = 150 + Math.floor(cityMentions[key]) * 1;
           var color = "rgb("+r+" ,"+g+","+ b+")"; 
+          if(document.querySelector('input[name="years"]:checked').value == 'all_years'){
+            multiplier = 20000
+          }
+          else{
+            multiplier = 100000
+          }
           var newCircle = L.circle(latlongs[key], {
             color: color,
             fillColor: color,
-            radius: Math.sqrt(cityMentions[key]) * 1.4 * 100000
+            radius: Math.sqrt(cityMentions[key]) * 1.4 * multiplier
           }
           ).bringToFront()
           .bindPopup(spacedName.toString() + ", publications:  " + cityMentions[key].toString()).openPopup().bringToFront().addTo(map);
@@ -285,22 +335,32 @@
       document.getElementById("totalNumber").innerHTML = totalNum()
     }
 
+    function switchData(){
+      if(document.querySelector('input[name="dataset"]:checked').value == 'all_data'){
+        window.jsonData = $.getJSON( "./data.json", function(data) {
+       console.log( "success" );
+       drawMap();
+     });
+      }
 
-    var jsonData = $.getJSON( "./data.json", function(data) {
-     console.log( "success" );
+      else if (document.querySelector('input[name="dataset"]:checked').value == 'translations'){
+        window.jsonData = $.getJSON( "./translation_data.json", function(data) {
+       console.log( "translations" );
+       clearMap();
+       drawMap();
+     });
+      }
+    }
 
-     for (j = 0; j < jsonData.responseJSON.length; j++){
+  var jsonData = $.getJSON( "./translation_data.json", function(data) {
+       console.log( "success" );
+       drawMap();
+     });
 
-     }
-
-
-
-     drawMap();
-
-
-   });
-
-
+  var jsonData = $.getJSON( "./data.json", function(data) {
+       console.log( "success" );
+       drawMap();
+     });
 
   </script>
 
